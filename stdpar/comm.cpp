@@ -32,7 +32,8 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "mpi.h"
+#include <mpi.h>
+
 #include "comm.h"
 
 /* formerly openmp.h - now only used here */

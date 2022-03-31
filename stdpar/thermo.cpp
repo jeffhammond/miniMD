@@ -29,9 +29,11 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "mpi.h"
+#include <cstdio>
+#include <cstdlib>
+
+#include <mpi.h>
+
 #include "force_lj.h"
 #include "integrate.h"
 #include "thermo.h"

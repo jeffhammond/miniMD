@@ -32,7 +32,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
-#include "mpi.h"
+#include <mpi.h>
 
 #include "ljs.h"
 #include "atom.h"

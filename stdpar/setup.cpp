@@ -30,16 +30,15 @@
 ---------------------------------------------------------------------- */
 
 #include <cstdio>
+#include <cstring>
 #include <cmath>
-#include "mpi.h"
+#include <mpi.h>
+
 #include "atom.h"
 #include "thermo.h"
 #include "types.h"
 #include "integrate.h"
 #include "neighbor.h"
-
-#include <cstring>
-#include <cstdio>
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))

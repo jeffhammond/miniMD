@@ -29,15 +29,15 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "math.h"
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+
 #include "force_eam.h"
 #include "atom.h"
 #include "comm.h"
 #include "neighbor.h"
-#include "memory.h"
 
 #define MAXLINE 1024
 

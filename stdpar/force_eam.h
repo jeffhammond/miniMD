@@ -33,12 +33,13 @@
 #ifndef FORCEEAM_H
 #define FORCEEAM_H
 
-#include "stdio.h"
+#include <cstdio>
+#include <mpi.h>
+
 #include "atom.h"
 #include "neighbor.h"
 #include "threadData.h"
 #include "types.h"
-#include "mpi.h"
 #include "comm.h"
 #include "force.h"
 
