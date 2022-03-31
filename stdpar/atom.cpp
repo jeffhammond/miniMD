@@ -29,10 +29,12 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "string.h"
-#include "stdlib.h"
-#include "mpi.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <mpi.h>
+
 #include "atom.h"
 #include "neighbor.h"
 

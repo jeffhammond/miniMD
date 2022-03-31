@@ -30,9 +30,13 @@
 ---------------------------------------------------------------------- */
 //#define PRINTDEBUG(a) a
 #define PRINTDEBUG(a)
-#include "stdio.h"
+#include <cstdio>
+#include <cmath>
+
 #include "integrate.h"
-#include "math.h"
+
+#include <execution>
+#include "counting.h"
 
 Integrate::Integrate() {sort_every=20;}
 Integrate::~Integrate() {}
@@ -44,26 +48,31 @@ void Integrate::setup()
 
 void Integrate::initialIntegrate()
 {
-  OMPFORSCHEDULE
-  for(MMD_int i = 0; i < nlocal; i++) {
+  //for(MMD_int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nlocal),
+                 [=](MMD_int i) {
     v[i * PAD + 0] += dtforce * f[i * PAD + 0];
     v[i * PAD + 1] += dtforce * f[i * PAD + 1];
     v[i * PAD + 2] += dtforce * f[i * PAD + 2];
     x[i * PAD + 0] += dt * v[i * PAD + 0];
     x[i * PAD + 1] += dt * v[i * PAD + 1];
     x[i * PAD + 2] += dt * v[i * PAD + 2];
-  }
+  });
 }
 
 void Integrate::finalIntegrate()
 {
-  OMPFORSCHEDULE
-  for(MMD_int i = 0; i < nlocal; i++) {
+  //for(MMD_int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nlocal),
+                 [=](MMD_int i) {
     v[i * PAD + 0] += dtforce * f[i * PAD + 0];
     v[i * PAD + 1] += dtforce * f[i * PAD + 1];
     v[i * PAD + 2] += dtforce * f[i * PAD + 2];
-  }
-
+  });
 }
 
 void Integrate::run(Atom &atom, Force* force, Neighbor &neighbor,
