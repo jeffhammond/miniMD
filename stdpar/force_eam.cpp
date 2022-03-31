@@ -303,8 +303,13 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
   // rho = density at each atom
   // loop over neighbors of my atoms
 
-  OMPFORSCHEDULE
-  for(MMD_int i = 0; i < nlocal; i++) {
+  std::atomic<MMD_float> a_evdwl{0};
+
+  //for(MMD_int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nlocal),
+                 [=,&a_evdwl](MMD_int i) {
     int* neighs = &neighbor.neighbors[i * neighbor.maxneighs];
     const int jnum = neighbor.numneigh[i];
     const MMD_float xtmp = x[i * PAD + 0];
@@ -345,10 +350,11 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
     fp[i] = (frho_spline[type_ii*nrho_tot + m * 7 + 0] * p + frho_spline[type_ii*nrho_tot + m * 7 + 1]) * p + frho_spline[type_ii*nrho_tot + m * 7 + 2];
 
     if(evflag) {
-      evdwl += ((frho_spline[type_ii*nrho_tot + m * 7 + 3] * p + frho_spline[type_ii*nrho_tot + m * 7 + 4]) * p + frho_spline[type_ii*nrho_tot + m * 7 + 5]) * p + frho_spline[type_ii*nrho_tot + m * 7 + 6];
+      a_evdwl += ((frho_spline[type_ii*nrho_tot + m * 7 + 3] * p + frho_spline[type_ii*nrho_tot + m * 7 + 4]) * p + frho_spline[type_ii*nrho_tot + m * 7 + 5]) * p + frho_spline[type_ii*nrho_tot + m * 7 + 6];
     }
 
-  }
+  });
+  evdwl += a_evdwl.load();
 
   // fp = derivative of embedding energy at each atom
   // phi = embedding energy at each atom
@@ -361,7 +367,7 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
   // compute forces on each atom
   // loop over neighbors of my atoms
 
-  std::atomic<MMD_float> a_evdwl{0};
+  a_evdwl.store(0);
   std::atomic<MMD_float> at_virial{0};
 
   //for(MMD_int i = 0; i < nlocal; i++) {
@@ -445,9 +451,7 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
   MMD_float t_virial = at_virial.load();
   evdwl += a_evdwl.load();
 
-  //#pragma omp atomic
   virial += t_virial;
-  //#pragma omp atomic
   eng_vdwl += 2.0 * evdwl;
 
 }
