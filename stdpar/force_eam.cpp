@@ -39,6 +39,9 @@
 #include "comm.h"
 #include "neighbor.h"
 
+#include <execution>
+#include "counting.h"
+
 #define MAXLINE 1024
 
 #define MAX(a,b) (a>b?a:b)
@@ -73,7 +76,7 @@ ForceEAM::~ForceEAM()
 
 void ForceEAM::setup()
 {
-  me = threads->mpi_me;
+  MPI_Comm_rank(MPI_COMM_WORLD, &me);
   coeff("Cu_u6.eam");
   init_style();
 }
@@ -93,9 +96,6 @@ void ForceEAM::compute(Atom &atom, Neighbor &neighbor, Comm &comm, int me)
 
 void ForceEAM::compute_halfneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int me)
 {
-
-  MMD_float evdwl = 0.0;
-
   virial = 0;
   // grow energy and fp arrays if necessary
   // need to be atom->nmax in length
@@ -168,6 +168,9 @@ void ForceEAM::compute_halfneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
 
   // fp = derivative of embedding energy at each atom
   // phi = embedding energy at each atom
+
+
+  MMD_float evdwl = 0.0;
 
   for(MMD_int i = 0; i < nlocal; i++) {
     MMD_float p = 1.0 * rho[i] * rdrho + 1.0;
@@ -250,14 +253,16 @@ void ForceEAM::compute_halfneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
           f[j * PAD + 0] -= delx * fpair;
           f[j * PAD + 1] -= dely * fpair;
           f[j * PAD + 2] -= delz * fpair;
-        } else fpair *= 0.5;
+        } else {
+          fpair *= 0.5;
+        }
 
         if(evflag) {
           virial += delx * delx * fpair + dely * dely * fpair + delz * delz * fpair;
         }
 
         if(j < nlocal) evdwl += phi;
-        else evdwl += 0.5 * phi;
+        else           evdwl += 0.5 * phi;
       }
     }
 
@@ -268,7 +273,6 @@ void ForceEAM::compute_halfneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
 
   eng_vdwl = evdwl;
 }
-
 /* ---------------------------------------------------------------------- */
 
 void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int me)
@@ -351,16 +355,20 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
 
   // communicate derivative of embedding function
 
-  {
-    communicate(atom, comm);
-  }
+  communicate(atom, comm);
 
-  MMD_float t_virial = 0;
+
   // compute forces on each atom
   // loop over neighbors of my atoms
 
-  OMPFORSCHEDULE
-  for(MMD_int i = 0; i < nlocal; i++) {
+  std::atomic<MMD_float> a_evdwl{0};
+  std::atomic<MMD_float> at_virial{0};
+
+  //for(MMD_int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nlocal),
+                 [=,&at_virial,&a_evdwl](MMD_int i) {
     int* neighs = &neighbor.neighbors[i * neighbor.maxneighs];
     const int numneigh = neighbor.numneigh[i];
     const MMD_float xtmp = x[i * PAD + 0];
@@ -421,8 +429,8 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
         fpair *= 0.5;
 
         if(evflag) {
-          t_virial += delx * delx * fpair + dely * dely * fpair + delz * delz * fpair;
-          evdwl += 0.5 * phi;
+          at_virial += delx * delx * fpair + dely * dely * fpair + delz * delz * fpair;
+          a_evdwl += 0.5 * phi;
         }
 
       }
@@ -432,11 +440,14 @@ void ForceEAM::compute_fullneigh(Atom &atom, Neighbor &neighbor, Comm &comm, int
     f[i * PAD + 1] = fy;
     f[i * PAD + 2] = fz;
 
-  }
+  });
 
-  #pragma omp atomic
+  MMD_float t_virial = at_virial.load();
+  evdwl += a_evdwl.load();
+
+  //#pragma omp atomic
   virial += t_virial;
-  #pragma omp atomic
+  //#pragma omp atomic
   eng_vdwl += 2.0 * evdwl;
 
 }
@@ -572,7 +583,7 @@ void ForceEAM::read_file(const char* filename)
 
 void ForceEAM::file2array()
 {
-  int i, j, k, m, n;
+  int k;
   int ntypes = 1;
   double sixth = 1.0 / 6.0;
 
@@ -609,9 +620,7 @@ void ForceEAM::file2array()
 
   double r, p, cof1, cof2, cof3, cof4;
 
-  n = 0;
-
-  for(m = 1; m <= nrho; m++) {
+  for(int m = 1; m <= nrho; m++) {
     r = (m - 1) * drho;
     p = r / file->drho + 1.0;
     k = static_cast<int>(p);
@@ -639,7 +648,7 @@ void ForceEAM::file2array()
 
   // interpolate each file's rhor to a single grid and cutoff
 
-  for(m = 1; m <= nr; m++) {
+  for(int m = 1; m <= nr; m++) {
     r = (m - 1) * dr;
     p = r / file->dr + 1.0;
     k = static_cast<int>(p);
@@ -677,7 +686,7 @@ void ForceEAM::file2array()
   Funcfl* ifile = &funcfl;
   Funcfl* jfile = &funcfl;
 
-  for(m = 1; m <= nr; m++) {
+  for(int m = 1; m <= nr; m++) {
     r = (m - 1) * dr;
 
     p = r / ifile->dr + 1.0;
