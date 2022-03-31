@@ -4,7 +4,7 @@ SHELL = /bin/sh
 
 # Default Options
 
-AVX ?= yes
+AVX ?= no
 SIMD ?= yes
 
 #.IGNORE:
