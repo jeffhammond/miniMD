@@ -29,9 +29,11 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "stdlib.h"
-#include "mpi.h"
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <mpi.h>
 
 #include "variant.h"
 #include "ljs.h"
@@ -42,8 +44,7 @@
 #include "comm.h"
 #include "timer.h"
 #include "threadData.h"
-#include "string.h"
-#include "openmp.h"
+
 #include "force_eam.h"
 #include "force.h"
 #include "force_lj.h"
@@ -306,7 +307,7 @@ int main(int argc, char** argv)
 
   neighbor.ghost_newton = ghost_newton;
 
-  omp_set_num_threads(num_threads);
+  //omp_set_num_threads(num_threads);
 
   neighbor.timer = &timer;
   force->timer = &timer;
@@ -448,7 +449,6 @@ int main(int argc, char** argv)
   comm.borders(atom);
 
   force->evflag = 1;
-  //#pragma omp parallel
   {
     neighbor.build(atom);
   
@@ -462,7 +462,6 @@ int main(int argc, char** argv)
 
   if(me == 0) printf("# Timestep T U P Time\n");
 
-  //#pragma omp parallel
   {
     thermo.compute(0, atom, neighbor, force, timer, comm);
   }

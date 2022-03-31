@@ -29,11 +29,22 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "stdlib.h"
+#include <cstdio>
+#include <cstdlib>
+
 #include "mpi.h"
 #include "comm.h"
-#include "openmp.h"
+
+/* formerly openmp.h - now only used here */
+inline int omp_get_thread_num() { return 0; }
+inline int omp_get_max_threads() { return 1; }
+inline int omp_set_num_threads(int num_threads) { return 1; }
+inline int __sync_fetch_and_add(int* ptr, int value)
+{
+  int tmp = *ptr;
+  *ptr += value;
+  return tmp;
+}
 
 #define BUFFACTOR 1.5
 #define BUFMIN 1000

@@ -36,6 +36,9 @@
 #include "atom.h"
 #include "neighbor.h"
 
+#include <execution>
+#include "counting.h"
+
 #define DELTA 20000
 
 Atom::Atom(int ntypes_)
@@ -105,20 +108,18 @@ void Atom::addatom(MMD_float x_in, MMD_float y_in, MMD_float z_in,
 
 void Atom::pbc()
 {
-  //#pragma omp for
-  for(int i = 0; i < nlocal; i++) {
-    if(x[i*PAD + 0] < 0.0) x[i * PAD + 0] += box.xprd;
-
+  //for(int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<int>(0),
+                 counting_iterator<int>(nlocal),
+                 [=](int i) {
+    if(x[i * PAD + 0] < 0.0)       x[i * PAD + 0] += box.xprd;
+    if(x[i * PAD + 1] < 0.0)       x[i * PAD + 1] += box.yprd;
+    if(x[i * PAD + 2] < 0.0)       x[i * PAD + 2] += box.zprd;
     if(x[i * PAD + 0] >= box.xprd) x[i * PAD + 0] -= box.xprd;
-
-    if(x[i * PAD + 1] < 0.0) x[i * PAD + 1] += box.yprd;
-
     if(x[i * PAD + 1] >= box.yprd) x[i * PAD + 1] -= box.yprd;
-
-    if(x[i * PAD + 2] < 0.0) x[i * PAD + 2] += box.zprd;
-
     if(x[i * PAD + 2] >= box.zprd) x[i * PAD + 2] -= box.zprd;
-  }
+  });
 }
 
 void Atom::copy(int i, int j)
@@ -134,64 +135,72 @@ void Atom::copy(int i, int j)
 
 void Atom::pack_comm(int n, int* list, MMD_float* buf, int* pbc_flags)
 {
-  int i, j;
-
   if(pbc_flags[0] == 0) {
 
-    //#pragma omp for schedule(static)
-    for(i = 0; i < n; i++) {
-      j = list[i];
-      buf[3 * i] = x[j * PAD + 0];
+    //for(i = 0; i < n; i++) {
+    std::for_each( std::execution::par_unseq,
+                   counting_iterator<int>(0),
+                   counting_iterator<int>(n),
+                   [=](int i) {
+      auto j = list[i];
+      buf[3 * i + 0] = x[j * PAD + 0];
       buf[3 * i + 1] = x[j * PAD + 1];
       buf[3 * i + 2] = x[j * PAD + 2];
-    }
+    });
+
   } else {
 
-    //#pragma omp for schedule(static)
-    for(i = 0; i < n; i++) {
-      j = list[i];
-      buf[3 * i] = x[j * PAD + 0] + pbc_flags[1] * box.xprd;
+    //for(i = 0; i < n; i++) {
+    std::for_each( std::execution::par_unseq,
+                   counting_iterator<int>(0),
+                   counting_iterator<int>(n),
+                   [=](int i) {
+      auto j = list[i];
+      buf[3 * i + 0] = x[j * PAD + 0] + pbc_flags[1] * box.xprd;
       buf[3 * i + 1] = x[j * PAD + 1] + pbc_flags[2] * box.yprd;
       buf[3 * i + 2] = x[j * PAD + 2] + pbc_flags[3] * box.zprd;
-    }
+    });
   }
 }
 
 void Atom::unpack_comm(int n, int first, MMD_float* buf)
 {
-  int i;
-
-  //#pragma omp for schedule(static)
-  for(i = 0; i < n; i++) {
-    x[(first + i) * PAD + 0] = buf[3 * i];
+  //for(i = 0; i < n; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<int>(0),
+                 counting_iterator<int>(n),
+                 [=](int i) {
+    x[(first + i) * PAD + 0] = buf[3 * i + 0];
     x[(first + i) * PAD + 1] = buf[3 * i + 1];
     x[(first + i) * PAD + 2] = buf[3 * i + 2];
-  }
+  });
 }
 
 void Atom::pack_reverse(int n, int first, MMD_float* buf)
 {
-  int i;
-
-  //#pragma omp for schedule(static)
-  for(i = 0; i < n; i++) {
-    buf[3 * i] = f[(first + i) * PAD + 0];
+  //for(i = 0; i < n; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<int>(0),
+                 counting_iterator<int>(n),
+                 [=](int i) {
+    buf[3 * i + 0] = f[(first + i) * PAD + 0];
     buf[3 * i + 1] = f[(first + i) * PAD + 1];
     buf[3 * i + 2] = f[(first + i) * PAD + 2];
-  }
+  });
 }
 
 void Atom::unpack_reverse(int n, int* list, MMD_float* buf)
 {
-  int i, j;
-
-  //#pragma omp for schedule(static)
-  for(i = 0; i < n; i++) {
-    j = list[i];
-    f[j * PAD + 0] += buf[3 * i];
+  //for(i = 0; i < n; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<int>(0),
+                 counting_iterator<int>(n),
+                 [=](int i) {
+    auto j = list[i];
+    f[j * PAD + 0] += buf[3 * i + 0];
     f[j * PAD + 1] += buf[3 * i + 1];
     f[j * PAD + 2] += buf[3 * i + 2];
-  }
+  });
 }
 
 int Atom::pack_border(int i, MMD_float* buf, int* pbc_flags)
@@ -262,7 +271,6 @@ int Atom::skip_exchange(MMD_float* buf)
 
 MMD_float* Atom::realloc_2d_MMD_float_array(MMD_float* array,
     int n1, int n2, int nold)
-
 {
   MMD_float* newarray;
 
@@ -299,7 +307,6 @@ void Atom::destroy_2d_MMD_float_array(MMD_float* array)
 
 int * Atom::realloc_1d_int_array(int* array,
     int n1, int nold)
-
 {
   int* newarray;
 
@@ -316,13 +323,9 @@ int * Atom::realloc_1d_int_array(int* array,
 
 int * Atom::create_1d_int_array(int n1)
 {
-  int ALIGN = 16;
-  int* data;
-  int i, n;
-
   if(n1 == 0) return NULL;
 
-  data = (int*) malloc((n1) * sizeof(int));
+  int * data = (int*) malloc((n1) * sizeof(int));
 
   return data;
 }
@@ -338,7 +341,6 @@ void Atom::destroy_1d_int_array(int* array)
 
 void Atom::sort(Neighbor &neighbor)
 {
-
   neighbor.binatoms(*this,nlocal);
 
   binpos = neighbor.bincount;
@@ -348,8 +350,10 @@ void Atom::sort(Neighbor &neighbor)
   const int atoms_per_bin = neighbor.atoms_per_bin;
 
   {
-    for(int i=1; i<mbins; i++)
+    // scan?
+    for(int i=1; i<mbins; i++) {
 	  binpos[i] += binpos[i-1];
+    }
     if(copy_size<nmax) {
 	    destroy_2d_MMD_float_array(x_copy);
 	    destroy_2d_MMD_float_array(v_copy);
@@ -368,9 +372,12 @@ void Atom::sort(Neighbor &neighbor)
   MMD_float* old_v = v;
   int* old_type = type;
 
-  //#pragma omp for
-  for(int mybin = 0; mybin<mbins; mybin++) {
-    const int start = mybin>0?binpos[mybin-1]:0;
+  //for(int mybin = 0; mybin<mbins; mybin++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<int>(0),
+                 counting_iterator<int>(mbins),
+                 [=](int mybin) {
+    const int start = (mybin>0) ? binpos[mybin-1] : 0;
     const int count = binpos[mybin] - start;
     for(int k=0; k<count; k++) {
 	  const int new_i = start+k;
@@ -383,7 +390,7 @@ void Atom::sort(Neighbor &neighbor)
 	  new_v[new_i*PAD+2] = old_v[old_i*PAD+2];
 	  new_type[new_i] = old_type[old_i];
     }
-  }
+  });
 
   {
     MMD_float* x_tmp = x;

@@ -29,10 +29,10 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "math.h"
+#include <cstdio>
+#include <cmath>
+
 #include "force_lj.h"
-#include "openmp.h"
 
 #ifndef VECTORLENGTH
 #define VECTORLENGTH 4

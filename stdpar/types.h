@@ -52,11 +52,7 @@ struct float4 {
 #define CHUNKSIZE 64
 #endif
 
-#ifdef NOCHUNK
-#define OMPFORSCHEDULE  #pragma omp parallel for schedule(static)
-#else
-#define OMPFORSCHEDULE  #pragma omp parallel for schedule(static,CHUNKSIZE)
-#endif
+#define OMPFORSCHEDULE
 
 #ifndef PRECISION
 #define PRECISION 2
@@ -81,14 +77,11 @@ typedef int MMD_bigint;
 #endif
 
 #ifdef __INTEL_COMPILER
-#ifndef ALIGNMALLOC
-#define ALIGNMALLOC 64
-#endif
 #define RESTRICT __restrict
 #endif
 
-
 #ifndef RESTRICT
-#define RESTRICT
+#define RESTRICT __restrict__
 #endif
+
 #endif

@@ -8,7 +8,7 @@ LINK =  $(CC)
 # MiniMD Files
 
 SRC =	ljs.cpp input.cpp integrate.cpp atom.cpp force_lj.cpp neighbor.cpp thermo.cpp comm.cpp timer.cpp output.cpp setup.cpp force_eam.cpp  
-INC = ljs.h atom.h force.h neighbor.h thermo.h timer.h comm.h integrate.h threadData.h variant.h types.h force_eam.h force_lj.h openmp.h
+INC = ljs.h atom.h force.h neighbor.h thermo.h timer.h comm.h integrate.h threadData.h variant.h types.h force_eam.h force_lj.h counting.h
 
 	
 # Definitions
@@ -17,8 +17,8 @@ ROOT =	miniMD
 EXE =	$(ROOT)
 OBJ =	$(SRC:.cpp=.o) $(KOKKOS_SRC:.cpp=.o) 
 
-CCFLAGS = -CC=g++-11 -O3 -DMPICH_IGNORE_CXX_SEEK -DDEVICE=1  -I./ -g -fopenmp -std=c++20 -DUSE_SIMD -DNOCHUNK
-LINKFLAGS = -CC=g++-11 -O3 -g -fopenmp -std=c++20
+CCFLAGS = -CC=g++-11 -O3 -DMPICH_IGNORE_CXX_SEEK -DDEVICE=1  -I./ -g -std=c++20 -DUSE_SIMD -DNOCHUNK
+LINKFLAGS = -CC=g++-11 -O3 -g -std=c++20
 USRLIB =  
 SYSLIB =  
 

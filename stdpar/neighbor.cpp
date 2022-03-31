@@ -29,11 +29,13 @@
    Please read the accompanying README and LICENSE files.
 ---------------------------------------------------------------------- */
 
-#include "stdio.h"
-#include "stdlib.h"
+#include <cstdio>
+#include <cstdlib>
 
 #include "neighbor.h"
-#include "openmp.h"
+
+#include <execution>
+#include "counting.h"
 
 #define FACTOR 0.999
 #define SMALL 1.0e-6
@@ -59,13 +61,8 @@ Neighbor::Neighbor(int ntypes_)
 
 Neighbor::~Neighbor()
 {
-#ifdef ALIGNMALLOC
-  if(numneigh) _mm_free(numneigh);
-  if(neighbors) _mm_free(neighbors);
-#else 
   if(numneigh) free(numneigh);
   if(neighbors) free(neighbors);
-#endif
   
   if(bincount) free(bincount);
 
@@ -199,12 +196,19 @@ void Neighbor::binatoms(Atom &atom, int count)
 
   while(resize > 0) {
     resize = 0;
-    //#pragma omp for schedule(static)
-    for(int i = 0; i < mbins; i++) bincount[i] = 0;
+    //for(int i = 0; i < mbins; i++) 
+    std::for_each( std::execution::par_unseq,
+                   counting_iterator<int>(0),
+                   counting_iterator<int>(mbins),
+                   [=](int i) {
+        bincount[i] = 0;
+    });
 
-
-    OMPFORSCHEDULE
-    for(int i = 0; i < nall; i++) {
+    //for(int i = 0; i < nall; i++) {
+    std::for_each( std::execution::par_unseq,
+                   counting_iterator<int>(0),
+                   counting_iterator<int>(nall),
+                   [=](int i) {
       const int ibin = coord2bin(x[i * PAD + 0], x[i * PAD + 1], x[i * PAD + 2]);
 
       if(bincount[ibin] < atoms_per_bin) {
@@ -216,8 +220,10 @@ void Neighbor::binatoms(Atom &atom, int count)
         ac = __sync_fetch_and_add(bincount + ibin, 1);
 #endif
         bins[ibin * atoms_per_bin + ac] = i;
-      } else resize = 1;
-    }
+      } else {
+        resize = 1;
+      }
+    });
 
     if(resize) {
       free(bins);
