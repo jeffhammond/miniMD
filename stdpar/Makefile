@@ -1,101 +1,60 @@
-# Multiple-machine Makefile
-
+# Default Makefile: just call 'make -f Makefile.default'
 SHELL = /bin/sh
 
-# Files
+#Compiler and Linker
+CC =   mpicxx
+LINK =  $(CC)
 
-SRC =	ljs.cpp input.cpp integrate.cpp atom.cpp force_lj.cpp force_eam.cpp neighbor.cpp \
-	thermo.cpp comm.cpp timer.cpp output.cpp setup.cpp
-INC =	ljs.h atom.h force.h neighbor.h thermo.h timer.h comm.h integrate.h threadData.h variant.h openmp.h \
-	force_lj.h force_eam.h types.h
+# MiniMD Files
 
+SRC =	ljs.cpp input.cpp integrate.cpp atom.cpp force_lj.cpp neighbor.cpp thermo.cpp comm.cpp timer.cpp output.cpp setup.cpp force_eam.cpp  
+INC = ljs.h atom.h force.h neighbor.h thermo.h timer.h comm.h integrate.h threadData.h variant.h types.h force_eam.h force_lj.h openmp.h
+
+	
 # Definitions
 
 ROOT =	miniMD
-EXE =	$(ROOT)_$@
-OBJ =	$(SRC:.cpp=.o)
+EXE =	$(ROOT)
+OBJ =	$(SRC:.cpp=.o) $(KOKKOS_SRC:.cpp=.o) 
 
-# Help
+CCFLAGS = -CC=g++-11 -O3 -DMPICH_IGNORE_CXX_SEEK -DDEVICE=1  -I./ -g -fopenmp -std=c++20 -DUSE_SIMD -DNOCHUNK
+LINKFLAGS = -CC=g++-11 -O3 -g -fopenmp -std=c++20
+USRLIB =  
+SYSLIB =  
 
-help:
-	@echo 'Type "make target {Options}" where target is one of:'
-	@echo '      openmpi     (using OpenMPI)'
-	@echo '      intel       (using intelMPI)'
-	@echo '      cray        (using CrayCompiler for CPUs)'
-	@echo '      cray_intel  (using Cray Wrapper for Intel compiler for CPUs)'
-	@echo 'Options (not all of which apply for each target):'
-	@echo '      KNC=yes     (compile for XeonPhi)'
-	@echo '      SP=yes      (compile for single precision [32bit floats])'
-	@echo '      DEBUG=yes   (compile debug mode)'
-	@echo '      AVX=yes     (compile for avx [DEFAULT])'
-	@echo '      SIMD=yes    (use "pragma simd" [DEFAULT])'
-	@echo '      RED_PREC=yes   (use reduced precision math intrinsics)'
-	@echo '      ANSI_ALIAS=yes (compile with ansi-alias flag)'
-	@echo '      GSUNROLL=yes   (compile with flags for XeonPhi which unroll gather/scatter operations [DEFAULT])'
-	@echo '      LIBRT=yes   (use librt for timing [more precise])'
-	@echo '      PAD=[3,4]   (pad data to 3 or 4 elements [default 3 = no padding])'
-	@echo '(Good) Examples:'
-	@echo '    Modern CPUs (Intel Sandy Bridge, AMD Interlagos or newer):'
-	@echo '      make openmpi -j 32'
-	@echo '    Intel Xeon Phi:'
-	@echo '      make intel -j 32 KNC=yes ANSI_ALIAS=yes SIMD=no'
+#First copy all files, then call the same makefile again with the actual build target
+#Can't be done in single pass, because the actual compilation rule for .o files, need the 
+#copied cpp files to be in place. 
 
-# Targets
+copy: 
+	@if [ ! -d Obj_default ]; then mkdir Obj_default; fi
+	@cp -p $(SRC) $(INC) Obj_default
+	@cp Makefile Obj_default/Makefile
+	@cd Obj_default; $(MAKE) all
+  
+all: $(OBJ)
+	$(LINK) $(OBJ) $(LINKFLAGS) $(USRLIB) $(SYSLIB) -o ../$(EXE)
+  
+# Compilation rules
 
-openmpi:
-	@if [ ! -d Obj_$@ ]; then mkdir Obj_$@; fi
-	@cp -p $(SRC) $(INC) Obj_$@
-	@cp Makefile.$@ Obj_$@/Makefile
-	@cd Obj_$@; \
-	$(MAKE)  "OBJ = $(OBJ)" "INC = $(INC)" "EXE = ../$(EXE)" ../$(EXE)
-#	@if [ -d Obj_$@ ]; then cd Obj_$@; rm $(SRC) $(INC) Makefile*; fi
+.cpp.o:
+	$(CC) $(CCFLAGS) -E $*.cpp > $*.2.cpp
+	$(CC) $(CCFLAGS) -c $*.2.cpp -o $*.o
 
-cray:
-	@if [ ! -d Obj_$@ ]; then mkdir Obj_$@; fi
-	@cp -p $(SRC) $(INC) Obj_$@
-	@cp Makefile.$@ Obj_$@/Makefile
-	@cd Obj_$@; \
-	$(MAKE)  "OBJ = $(OBJ)" "INC = $(INC)" "EXE = ../$(EXE)" ../$(EXE)
+# Individual dependencies
 
-cray_intel:
-	@if [ ! -d Obj_$@ ]; then mkdir Obj_$@; fi
-	@cp -p $(SRC) $(INC) Obj_$@
-	@cp Makefile.$@ Obj_$@/Makefile
-	@cd Obj_$@; \
-	$(MAKE)  "OBJ = $(OBJ)" "INC = $(INC)" "EXE = ../$(EXE)" ../$(EXE)
-
-intel:
-	@if [ ! -d Obj_$@ ]; then mkdir Obj_$@; fi
-	@cp -p $(SRC) $(INC) Obj_$@
-	@cp Makefile.$@ Obj_$@/Makefile
-	@cd Obj_$@; \
-	$(MAKE)  "OBJ = $(OBJ)" "INC = $(INC)" "EXE = ../$(EXE)" ../$(EXE)
-#       @if [ -d Obj_$@ ]; then cd Obj_$@; rm $(SRC) $(INC) Makefile*; fi
-
+$(OBJ): $(INC)
 
 # Clean
-
 clean:
 	rm -r Obj_*
-
-clean_openmpi:
-	rm -r Obj_openmpi
-
-clean_intel:
-	rm -r Obj_intel
-
-clean_cray:
-	rm -r Obj_cray
 	
-clean_cray_intel:
-	rm -r Obj_cray_intel
-
 # Test
 
 scope=0
 input=lj
 halfneigh=0
 path=""
-
 test:
-	bash run_tests ${scope} ${input} ${halfneigh} ${path}   
+	bash run_tests ${scope} ${input} ${halfneigh} ${path} 
+  

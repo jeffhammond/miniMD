@@ -82,9 +82,7 @@ void Thermo::compute(MMD_int iflag, Atom &atom, Neighbor &neighbor, Force* force
   t_act = 0;
   e_act = 0;
   p_act = 0;
-  #pragma omp barrier
   t = temperature(atom);
-  #pragma omp master
   {
     eng = energy(atom, neighbor, force);
 
@@ -144,7 +142,6 @@ MMD_float Thermo::temperature(Atom &atom)
 
   MMD_float t = 0.0;
   t_act = 0;
-  #pragma omp barrier
 
   MMD_float* v = atom.v;
 
@@ -159,10 +156,7 @@ MMD_float Thermo::temperature(Atom &atom)
   #pragma omp atomic
   t_act += t;
 
-  #pragma omp barrier
-
   MMD_float t1;
-  #pragma omp master
   {
     if(sizeof(MMD_float) == 4)
       MPI_Allreduce(&t_act, &t1, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);

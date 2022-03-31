@@ -53,9 +53,9 @@ struct float4 {
 #endif
 
 #ifdef NOCHUNK
-#define OMPFORSCHEDULE  #pragma omp for schedule(static)
+#define OMPFORSCHEDULE  #pragma omp parallel for schedule(static)
 #else
-#define OMPFORSCHEDULE  #pragma omp for schedule(static,CHUNKSIZE)
+#define OMPFORSCHEDULE  #pragma omp parallel for schedule(static,CHUNKSIZE)
 #endif
 
 #ifndef PRECISION

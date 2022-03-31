@@ -448,7 +448,7 @@ int main(int argc, char** argv)
   comm.borders(atom);
 
   force->evflag = 1;
-  #pragma omp parallel
+  //#pragma omp parallel
   {
     neighbor.build(atom);
   
@@ -462,7 +462,7 @@ int main(int argc, char** argv)
 
   if(me == 0) printf("# Timestep T U P Time\n");
 
-  #pragma omp parallel
+  //#pragma omp parallel
   {
     thermo.compute(0, atom, neighbor, force, timer, comm);
   }

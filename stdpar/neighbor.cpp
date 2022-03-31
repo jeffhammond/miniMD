@@ -83,27 +83,14 @@ void Neighbor::build(Atom &atom)
   const int nall = atom.nlocal + atom.nghost;
   /* extend atom arrays if necessary */
 
-  #pragma omp master
-
   if(nall > nmax) {
     nmax = nall;
-#ifdef ALIGNMALLOC
-    if(numneigh) _mm_free(numneigh);
-    numneigh = (int*) _mm_malloc(nmax * sizeof(int) + ALIGNMALLOC, ALIGNMALLOC);
-    if(neighbors) _mm_free(neighbors);	
-    neighbors = (int*) _mm_malloc(nmax * maxneighs * sizeof(int) + ALIGNMALLOC, ALIGNMALLOC);
-#else
-
     if(numneigh) free(numneigh);
-
     if(neighbors) free(neighbors);
-
     numneigh = (int*) malloc(nmax * sizeof(int));
     neighbors = (int*) malloc(nmax * maxneighs * sizeof(int));
-#endif
   }
 
-  #pragma omp barrier
   /* bin local & ghost atoms */
 
   binatoms(atom);
@@ -115,13 +102,10 @@ void Neighbor::build(Atom &atom)
   int ntypes = atom.ntypes;
 
   resize = 1;
-  #pragma omp barrier
 
   while(resize) {
-    #pragma omp barrier
     int new_maxneighs = maxneighs;
     resize = 0;
-    #pragma omp barrier
 
     OMPFORSCHEDULE
     for(int i = 0; i < nlocal; i++) {
@@ -190,25 +174,14 @@ void Neighbor::build(Atom &atom)
       }
     }
 
-    // #pragma omp barrier
-
     if(resize) {
-      #pragma omp master
       {
         maxneighs = new_maxneighs * 1.2;
-#ifdef ALIGNMALLOC
-  		_mm_free(neighbors);
-  		neighbors = (int*) _mm_malloc(nmax* maxneighs * sizeof(int) + ALIGNMALLOC, ALIGNMALLOC);
-#else
-  		free(neighbors);
+        free(neighbors);
         neighbors = (int*) malloc(nmax* maxneighs * sizeof(int));
-#endif
       }
-      #pragma omp barrier
     }
   }
-
-  #pragma omp barrier
 
 }
 
@@ -224,13 +197,9 @@ void Neighbor::binatoms(Atom &atom, int count)
 
   resize = 1;
 
-  #pragma omp barrier
-
   while(resize > 0) {
-    #pragma omp barrier
     resize = 0;
-    #pragma omp barrier
-    #pragma omp for schedule(static)
+    //#pragma omp for schedule(static)
     for(int i = 0; i < mbins; i++) bincount[i] = 0;
 
 
@@ -250,20 +219,13 @@ void Neighbor::binatoms(Atom &atom, int count)
       } else resize = 1;
     }
 
-    // #pragma omp barrier
-
-    #pragma omp master
-
     if(resize) {
       free(bins);
       atoms_per_bin *= 2;
       bins = (int*) malloc(mbins * atoms_per_bin * sizeof(int));
     }
 
-    // #pragma omp barrier
   }
-
-  #pragma omp barrier
 
 }
 

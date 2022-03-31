@@ -289,16 +289,13 @@ void Comm::communicate(Atom &atom)
     pbc_flags[2] = pbc_flagy[iswap];
     pbc_flags[3] = pbc_flagz[iswap];
 
-    //#pragma omp barrier
     atom.pack_comm(sendnum[iswap], sendlist[iswap], buf_send, pbc_flags);
-
-    //#pragma omp barrier
 
     /* exchange with another proc
        if self, set recv buffer to send buffer */
 
     if(sendproc[iswap] != me) {
-      #pragma omp master
+      
       {
         MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
         MPI_Sendrecv(buf_send, comm_send_size[iswap], type, sendproc[iswap], 0,
@@ -308,11 +305,8 @@ void Comm::communicate(Atom &atom)
       buf = buf_recv;
     } else buf = buf_send;
 
-    #pragma omp barrier
     /* unpack buffer */
-
     atom.unpack_comm(recvnum[iswap], firstrecv[iswap], buf);
-    //#pragma omp barrier
   }
 }
 
@@ -327,16 +321,14 @@ void Comm::reverse_communicate(Atom &atom)
 
     /* pack buffer */
 
-    // #pragma omp barrier
     atom.pack_reverse(recvnum[iswap], firstrecv[iswap], buf_send);
 
-    // #pragma omp barrier
     /* exchange with another proc
        if self, set recv buffer to send buffer */
 
     if(sendproc[iswap] != me) {
 
-      #pragma omp master
+      
       {
         MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
         MPI_Sendrecv(buf_send, reverse_send_size[iswap], type, recvproc[iswap], 0,
@@ -347,10 +339,7 @@ void Comm::reverse_communicate(Atom &atom)
     } else buf = buf_send;
 
     /* unpack buffer */
-
-    #pragma omp barrier
     atom.unpack_reverse(sendnum[iswap], sendlist[iswap], buf);
-    // #pragma omp barrier
   }
 }
 
@@ -403,7 +392,7 @@ void Comm::exchange(Atom &atom)
 
     nlocal = atom.nlocal;
 
-    #pragma omp master
+    
     {
       if(nlocal > maxnlocal) {
         send_flag = new int[nlocal];
@@ -425,17 +414,14 @@ void Comm::exchange(Atom &atom)
       }
     }
 
-    #pragma omp barrier
-
     nsend = 0;
-    #pragma omp for
-
+    //#pragma omp for
     for(int i = 0; i < threads->omp_num_threads; i++) {
       nsend_thread[i] = 0;
       nholes_thread[i] = 0;
     }
 
-    #pragma omp for
+    //#pragma omp for
     for(int i = 0; i < nlocal; i++) {
       if(x[i * PAD + idim] < lo || x[i * PAD + idim] >= hi) {
         if(nsend >= maxsend_thread[tid])  {
@@ -451,9 +437,6 @@ void Comm::exchange(Atom &atom)
 
     nsend_thread[tid] = nsend;
 
-    #pragma omp barrier
-
-    #pragma omp master
     {
       int total_nsend = 0;
 
@@ -465,8 +448,6 @@ void Comm::exchange(Atom &atom)
       if(total_nsend * 7 > maxsend) growsend(total_nsend * 7);
     }
 
-    #pragma omp barrier
-
     int total_nsend = nsend_thread[threads->omp_num_threads - 1];
     int nholes = 0;
 
@@ -475,9 +456,7 @@ void Comm::exchange(Atom &atom)
         nholes++;
 
     nholes_thread[tid] = nholes;
-    #pragma omp barrier
-
-    #pragma omp master
+    
     {
       int total_nholes = 0;
 
@@ -486,7 +465,6 @@ void Comm::exchange(Atom &atom)
         nholes_thread[i] = total_nholes;
       }
     }
-    #pragma omp barrier
 
     int j = nlocal;
     int holes = 0;
@@ -509,8 +487,6 @@ void Comm::exchange(Atom &atom)
     }
 
     nsend *= 7;
-    #pragma omp barrier
-    #pragma omp master
     {
       atom.nlocal = nlocal - total_nsend;
       nsend = total_nsend * 7;
@@ -551,12 +527,9 @@ void Comm::exchange(Atom &atom)
     }
     /* check incoming atoms to see if they are in my box
        if they are, add to my list */
-
-    #pragma omp barrier
-
     nrecv = 0;
 
-    #pragma omp for
+    //#pragma omp for
     for(int i = 0; i < nrecv_atoms; i++) {
       value = buf_recv[i * 7 + idim];
 
@@ -566,9 +539,6 @@ void Comm::exchange(Atom &atom)
 
     nrecv_thread[tid] = nrecv;
     nlocal = atom.nlocal;
-    #pragma omp barrier
-
-    #pragma omp master
     {
       int total_nrecv = 0;
 
@@ -579,20 +549,16 @@ void Comm::exchange(Atom &atom)
 
       atom.nlocal += total_nrecv;
     }
-    #pragma omp barrier
 
     int copyinpos = nlocal + nrecv_thread[tid] - nrecv;
 
-    #pragma omp for
+    //#pragma omp for
     for(int i = 0; i < nrecv_atoms; i++) {
       value = buf_recv[i * 7 + idim];
 
       if(value >= lo && value < hi)
         atom.unpack_exchange(copyinpos++, &buf_recv[i * 7]);
     }
-
-    // #pragma omp barrier
-
   }
 }
 
@@ -714,7 +680,7 @@ void Comm::borders(Atom &atom)
 
   int tid = omp_get_thread_num();
 
-    #pragma omp master
+    
     {
       if(atom.nlocal > maxnlocal) {
         send_flag = new int[atom.nlocal];
@@ -761,17 +727,15 @@ void Comm::borders(Atom &atom)
         nlast = atom.nlocal + atom.nghost;
       }
 
-      #pragma omp for
-
+      //#pragma omp for
       for(int i = 0; i < threads->omp_num_threads; i++) {
         nsend_thread[i] = 0;
       }
 
-      //#pragma omp barrier
       nsend = 0;
       m = 0;
 
-      #pragma omp for
+      //#pragma omp for
       for(int i = nfirst; i < nlast; i++) {
         if(x[i * PAD + idim] >= lo && x[i * PAD + idim] <= hi) {
           if(nsend >= maxsend_thread[tid])  {
@@ -785,9 +749,6 @@ void Comm::borders(Atom &atom)
 
       nsend_thread[tid] = nsend;
 
-      #pragma omp barrier
-
-      #pragma omp master
       {
         int total_nsend = 0;
 
@@ -800,21 +761,17 @@ void Comm::borders(Atom &atom)
 
         if(total_nsend * 4 > maxsend) growsend(total_nsend * 4);
       }
-      #pragma omp barrier
 
       for(int k = 0; k < nsend; k++) {
         atom.pack_border(exc_sendlist_thread[tid][k], &buf_send[(k + nsend_thread[tid] - nsend) * 4], pbc_flags);
         sendlist[iswap][k + nsend_thread[tid] - nsend] = exc_sendlist_thread[tid][k];
       }
 
-      #pragma omp barrier
-
-
       /* swap atoms with other proc
       put incoming ghosts at end of my atom arrays
       if swapping with self, simply copy, no messages */
 
-      #pragma omp master
+      
       {
         nsend = nsend_thread[threads->omp_num_threads - 1];
 
@@ -839,19 +796,14 @@ void Comm::borders(Atom &atom)
       }
       /* unpack buffer */
 
-      #pragma omp barrier
       n = atom.nlocal + atom.nghost;
       nrecv = nrecv_atoms;
 
-      #pragma omp for
+      //#pragma omp for
       for(int i = 0; i < nrecv; i++)
         atom.unpack_border(n + i, &buf[i * 4]);
 
-      // #pragma omp barrier
-
       /* set all pointers & counters */
-
-      #pragma omp master
       {
         sendnum[iswap] = nsend;
         recvnum[iswap] = nrecv;
@@ -862,7 +814,6 @@ void Comm::borders(Atom &atom)
         firstrecv[iswap] = atom.nlocal + atom.nghost;
         atom.nghost += nrecv;
       }
-      #pragma omp barrier
       iswap++;
     }
   }

@@ -105,7 +105,7 @@ void Atom::addatom(MMD_float x_in, MMD_float y_in, MMD_float z_in,
 
 void Atom::pbc()
 {
-  #pragma omp for
+  //#pragma omp for
   for(int i = 0; i < nlocal; i++) {
     if(x[i*PAD + 0] < 0.0) x[i * PAD + 0] += box.xprd;
 
@@ -138,7 +138,7 @@ void Atom::pack_comm(int n, int* list, MMD_float* buf, int* pbc_flags)
 
   if(pbc_flags[0] == 0) {
 
-	#pragma omp for schedule(static)
+    //#pragma omp for schedule(static)
     for(i = 0; i < n; i++) {
       j = list[i];
       buf[3 * i] = x[j * PAD + 0];
@@ -147,7 +147,7 @@ void Atom::pack_comm(int n, int* list, MMD_float* buf, int* pbc_flags)
     }
   } else {
 
-    #pragma omp for schedule(static)
+    //#pragma omp for schedule(static)
     for(i = 0; i < n; i++) {
       j = list[i];
       buf[3 * i] = x[j * PAD + 0] + pbc_flags[1] * box.xprd;
@@ -161,7 +161,7 @@ void Atom::unpack_comm(int n, int first, MMD_float* buf)
 {
   int i;
 
-  #pragma omp for schedule(static)
+  //#pragma omp for schedule(static)
   for(i = 0; i < n; i++) {
     x[(first + i) * PAD + 0] = buf[3 * i];
     x[(first + i) * PAD + 1] = buf[3 * i + 1];
@@ -173,7 +173,7 @@ void Atom::pack_reverse(int n, int first, MMD_float* buf)
 {
   int i;
 
-  #pragma omp for schedule(static)
+  //#pragma omp for schedule(static)
   for(i = 0; i < n; i++) {
     buf[3 * i] = f[(first + i) * PAD + 0];
     buf[3 * i + 1] = f[(first + i) * PAD + 1];
@@ -185,7 +185,7 @@ void Atom::unpack_reverse(int n, int* list, MMD_float* buf)
 {
   int i, j;
 
-  #pragma omp for schedule(static)
+  //#pragma omp for schedule(static)
   for(i = 0; i < n; i++) {
     j = list[i];
     f[j * PAD + 0] += buf[3 * i];
@@ -283,11 +283,7 @@ MMD_float* Atom::create_2d_MMD_float_array(int n1, int n2)
 
   if(n1 * n2 == 0) return NULL;
 
-  #ifdef ALIGNMALLOC
-    array = (MMD_float*) _mm_malloc((n1 * n2 + 1024 + 1) * sizeof(MMD_float), ALIGNMALLOC);
-  #else
-    array = (MMD_float*) malloc((n1 * n2 + 1024 + 1) * sizeof(MMD_float));
-  #endif
+  array = (MMD_float*) malloc((n1 * n2 + 1024 + 1) * sizeof(MMD_float));
 
   return array;
 }
@@ -297,11 +293,7 @@ MMD_float* Atom::create_2d_MMD_float_array(int n1, int n2)
 void Atom::destroy_2d_MMD_float_array(MMD_float* array)
 {
   if(array != NULL) {
-  #ifdef ALIGNMALLOC
-	_mm_free(array);
-  #else
       free(array);
-  #endif
   }
 }
 
@@ -330,11 +322,7 @@ int * Atom::create_1d_int_array(int n1)
 
   if(n1 == 0) return NULL;
 
-  #ifdef ALIGNMALLOC
-    data = (int*) _mm_malloc((n1 + 1024 + 1) * sizeof(int), ALIGNMALLOC);
-  #else
-    data = (int*) malloc((n1) * sizeof(int));
-  #endif
+  data = (int*) malloc((n1) * sizeof(int));
 
   return data;
 }
@@ -344,11 +332,7 @@ int * Atom::create_1d_int_array(int n1)
 void Atom::destroy_1d_int_array(int* array)
 {
   if(array != NULL) {
-  #ifdef ALIGNMALLOC
-    _mm_free(array);
-  #else
     free(array);
-  #endif
   }
 }
 
@@ -356,7 +340,6 @@ void Atom::sort(Neighbor &neighbor)
 {
 
   neighbor.binatoms(*this,nlocal);
-  #pragma omp barrier
 
   binpos = neighbor.bincount;
   bins = neighbor.bins;
@@ -364,7 +347,6 @@ void Atom::sort(Neighbor &neighbor)
   const int mbins = neighbor.mbins;
   const int atoms_per_bin = neighbor.atoms_per_bin;
 
-  #pragma omp master
   {
     for(int i=1; i<mbins; i++)
 	  binpos[i] += binpos[i-1];
@@ -379,7 +361,6 @@ void Atom::sort(Neighbor &neighbor)
     }
   }
 
-  #pragma omp barrier
   MMD_float* new_x = x_copy;
   MMD_float* new_v = v_copy;
   int* new_type = type_copy;
@@ -387,7 +368,7 @@ void Atom::sort(Neighbor &neighbor)
   MMD_float* old_v = v;
   int* old_type = type;
 
-  #pragma omp for
+  //#pragma omp for
   for(int mybin = 0; mybin<mbins; mybin++) {
     const int start = mybin>0?binpos[mybin-1]:0;
     const int count = binpos[mybin] - start;
@@ -404,7 +385,6 @@ void Atom::sort(Neighbor &neighbor)
     }
   }
 
-  #pragma omp master
   {
     MMD_float* x_tmp = x;
     MMD_float* v_tmp = v;
@@ -417,5 +397,4 @@ void Atom::sort(Neighbor &neighbor)
     v_copy = v_tmp;
     type_copy = type_tmp;
   }
-  #pragma omp barrier
 }
