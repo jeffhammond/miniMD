@@ -34,8 +34,6 @@
 #include <cmath>
 #include <ctime>
 
-#include <mpi.h>
-
 #include "ljs.h"
 #include "atom.h"
 #include "integrate.h"

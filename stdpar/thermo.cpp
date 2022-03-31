@@ -31,12 +31,16 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 
 #include <mpi.h>
 
 #include "force_lj.h"
 #include "integrate.h"
 #include "thermo.h"
+
+#include <execution>
+#include "counting.h"
 
 Thermo::Thermo() {}
 Thermo::~Thermo() {}
@@ -127,10 +131,7 @@ MMD_float Thermo::energy(Atom &atom, Neighbor &neighbor, Force* force)
   e_act *= e_scale;
   MMD_float eng;
 
-  if(sizeof(MMD_float) == 4)
-    MPI_Allreduce(&e_act, &eng, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-  else
-    MPI_Allreduce(&e_act, &eng, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&e_act, &eng, 1, mpf, MPI_SUM, MPI_COMM_WORLD);
 
   return eng / atom.natoms;
 }
@@ -139,33 +140,64 @@ MMD_float Thermo::energy(Atom &atom, Neighbor &neighbor, Force* force)
 
 MMD_float Thermo::temperature(Atom &atom)
 {
-  MMD_int i;
-  MMD_float vx, vy, vz;
-
-  MMD_float t = 0.0;
   t_act = 0;
 
-  MMD_float* v = atom.v;
+  MMD_float * v = atom.v;
 
-  OMPFORSCHEDULE
-  for(i = 0; i < atom.nlocal; i++) {
-    vx = v[i * PAD + 0];
-    vy = v[i * PAD + 1];
-    vz = v[i * PAD + 2];
+#if 1
+  auto mass = atom.mass;
+  //for(MMD_int i = 0; i < atom.nlocal; i++) {
+  MMD_float t = std::transform_reduce( std::execution::par_unseq,
+                                       counting_iterator<MMD_int>(0),
+                                       counting_iterator<MMD_int>(atom.nlocal),
+                                       MMD_float(0), std::plus<>(),
+                                       [=](MMD_int i) {
+    MMD_float vx = v[i * PAD + 0];
+    MMD_float vy = v[i * PAD + 1];
+    MMD_float vz = v[i * PAD + 2];
+    MMD_float dt = (vx * vx + vy * vy + vz * vz) * mass;
+    return dt;
+  });
+#elif 1
+  std::atomic<MMD_float> at{0};
+  auto mass = atom.mass;
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(atom.nlocal),
+                 [=,&at](MMD_int i) {
+    MMD_float vx = v[i * PAD + 0];
+    MMD_float vy = v[i * PAD + 1];
+    MMD_float vz = v[i * PAD + 2];
+    at += (vx * vx + vy * vy + vz * vz) * mass;
+  });
+  MMD_float t = at.load();
+#elif 1
+  MMD_float t{0};
+  auto mass = atom.mass;
+  std::for_each( counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(atom.nlocal),
+                 [=,&t](MMD_int i) {
+    MMD_float vx = v[i * PAD + 0];
+    MMD_float vy = v[i * PAD + 1];
+    MMD_float vz = v[i * PAD + 2];
+    t += (vx * vx + vy * vy + vz * vz) * mass;
+  });
+#else
+  MMD_float t{0};
+  for(int i = 0; i < atom.nlocal; i++) {
+    MMD_float vx = v[i * PAD + 0];
+    MMD_float vy = v[i * PAD + 1];
+    MMD_float vz = v[i * PAD + 2];
     t += (vx * vx + vy * vy + vz * vz) * atom.mass;
   }
+#endif
 
   #pragma omp atomic
   t_act += t;
 
   MMD_float t1;
-  {
-    if(sizeof(MMD_float) == 4)
-      MPI_Allreduce(&t_act, &t1, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-    else
-      MPI_Allreduce(&t_act, &t1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&t_act, &t1, 1, mpf, MPI_SUM, MPI_COMM_WORLD);
 
-  }
   return t1 * t_scale;
 }
 
@@ -180,10 +212,7 @@ MMD_float Thermo::pressure(MMD_float t, Force* force)
 
   MMD_float virial = 0;
 
-  if(sizeof(MMD_float) == 4)
-    MPI_Allreduce(&p_act, &virial, 1, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
-  else
-    MPI_Allreduce(&p_act, &virial, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&p_act, &virial, 1, mpf, MPI_SUM, MPI_COMM_WORLD);
 
   //printf("Pres: %e %e %e %e\n",t,dof_boltz,virial,p_scale);
   return (t * dof_boltz + virial) * p_scale;

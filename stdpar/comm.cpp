@@ -32,8 +32,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <mpi.h>
-
 #include "comm.h"
 
 /* formerly openmp.h - now only used here */
@@ -308,9 +306,8 @@ void Comm::communicate(Atom &atom)
 
     if(sendproc[iswap] != me) {
       {
-        MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-        MPI_Sendrecv(buf_send, comm_send_size[iswap], type, sendproc[iswap], 0,
-                     buf_recv, comm_recv_size[iswap], type, recvproc[iswap], 0,
+        MPI_Sendrecv(buf_send, comm_send_size[iswap], mpf, sendproc[iswap], 0,
+                     buf_recv, comm_recv_size[iswap], mpf, recvproc[iswap], 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       }
       buf = buf_recv;
@@ -340,9 +337,8 @@ void Comm::reverse_communicate(Atom &atom)
     if(sendproc[iswap] != me) {
 
       {
-        MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-        MPI_Sendrecv(buf_send, reverse_send_size[iswap], type, recvproc[iswap], 0,
-                     buf_recv, reverse_recv_size[iswap], type, sendproc[iswap], 0,
+        MPI_Sendrecv(buf_send, reverse_send_size[iswap], mpf, recvproc[iswap], 0,
+                     buf_recv, reverse_recv_size[iswap], mpf, sendproc[iswap], 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       }
       buf = buf_recv;
@@ -516,14 +512,13 @@ void Comm::exchange(Atom &atom)
 
       if(nrecv > maxrecv) growrecv(nrecv);
 
-      MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-      MPI_Sendrecv(buf_send, nsend, type, procneigh[idim][0], 0,
-                   buf_recv, nrecv1, type, procneigh[idim][1], 0,
+      MPI_Sendrecv(buf_send, nsend, mpf, procneigh[idim][0], 0,
+                   buf_recv, nrecv1, mpf, procneigh[idim][1], 0,
                    MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
       if(procgrid[idim] > 2) {
-        MPI_Sendrecv(buf_send, nsend, type, procneigh[idim][1], 0,
-                     buf_recv+nrecv1, nrecv2, type, procneigh[idim][0], 0,
+        MPI_Sendrecv(buf_send, nsend, mpf, procneigh[idim][1], 0,
+                     buf_recv+nrecv1, nrecv2, mpf, procneigh[idim][0], 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       }
 
@@ -634,9 +629,8 @@ void Comm::exchange_all(Atom &atom)
 
         if(nrecv > maxrecv) growrecv(nrecv);
 
-        MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-        MPI_Sendrecv(buf_send, nsend, type, sendproc_exc[iswap], 0,
-                     buf_recv, nrecv, type, recvproc_exc[iswap], 0,
+        MPI_Sendrecv(buf_send, nsend, mpf, sendproc_exc[iswap], 0,
+                     buf_recv, nrecv, mpf, recvproc_exc[iswap], 0,
                      MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
         /* check incoming atoms to see if they are in my box
@@ -788,9 +782,8 @@ void Comm::borders(Atom &atom)
 
           if(nrecv * atom.border_size > maxrecv) growrecv(nrecv * atom.border_size);
 
-          MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-          MPI_Sendrecv(buf_send, nsend * atom.border_size, type, sendproc[iswap], 0,
-                       buf_recv, nrecv * atom.border_size, type, recvproc[iswap], 0,
+          MPI_Sendrecv(buf_send, nsend * atom.border_size, mpf, sendproc[iswap], 0,
+                       buf_recv, nrecv * atom.border_size, mpf, recvproc[iswap], 0,
                        MPI_COMM_WORLD, MPI_STATUS_IGNORE);
           buf = buf_recv;
         } else {

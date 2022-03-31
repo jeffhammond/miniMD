@@ -546,24 +546,15 @@ void ForceEAM::read_file(const char* filename)
 
   if(me == 0) grab(fptr, file->nrho, file->frho);
 
-  if(sizeof(MMD_float) == 4)
-    MPI_Bcast(file->frho, file->nrho, MPI_FLOAT, 0, MPI_COMM_WORLD);
-  else
-    MPI_Bcast(file->frho, file->nrho, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(file->frho, file->nrho, mpf, 0, MPI_COMM_WORLD);
 
   if(me == 0) grab(fptr, file->nr, file->zr);
 
-  if(sizeof(MMD_float) == 4)
-    MPI_Bcast(file->zr, file->nr, MPI_FLOAT, 0, MPI_COMM_WORLD);
-  else
-    MPI_Bcast(file->zr, file->nr, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(file->zr, file->nr, mpf, 0, MPI_COMM_WORLD);
 
   if(me == 0) grab(fptr, file->nr, file->rhor);
 
-  if(sizeof(MMD_float) == 4)
-    MPI_Bcast(file->rhor, file->nr, MPI_FLOAT, 0, MPI_COMM_WORLD);
-  else
-    MPI_Bcast(file->rhor, file->nr, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(file->rhor, file->nr, mpf, 0, MPI_COMM_WORLD);
 
   for(int i = file->nrho; i > 0; i--) file->frho[i] = file->frho[i - 1];
 
@@ -866,9 +857,8 @@ void ForceEAM::communicate(Atom &atom, Comm &comm)
        if self, set recv buffer to send buffer */
 
     if(comm.sendproc[iswap] != me) {
-      MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
-      MPI_Sendrecv(comm.buf_send, comm.comm_send_size[iswap], MPI_FLOAT, comm.sendproc[iswap], 0,
-                   comm.buf_recv, comm.comm_recv_size[iswap], MPI_FLOAT, comm.recvproc[iswap], 0,
+      MPI_Sendrecv(comm.buf_send, comm.comm_send_size[iswap], mpf, comm.sendproc[iswap], 0,
+                   comm.buf_recv, comm.comm_recv_size[iswap], mpf, comm.recvproc[iswap], 0,
                    MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       buf = comm.buf_recv;
     } else buf = comm.buf_send;

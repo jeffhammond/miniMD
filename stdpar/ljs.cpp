@@ -33,8 +33,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <mpi.h>
-
 #include "variant.h"
 #include "ljs.h"
 #include "atom.h"

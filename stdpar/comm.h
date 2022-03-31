@@ -32,9 +32,17 @@
 #ifndef COMM_H
 #define COMM_H
 
+#include <mpi.h>
+
 #include "atom.h"
 #include "threadData.h"
 #include "timer.h"
+
+#if PRECISION==1
+const MPI_Datatype mpf = MPI_FLOAT;
+#else
+const MPI_Datatype mpf = MPI_DOUBLE;
+#endif
 
 class Comm
 {
