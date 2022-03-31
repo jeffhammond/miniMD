@@ -295,7 +295,6 @@ void Comm::communicate(Atom &atom)
        if self, set recv buffer to send buffer */
 
     if(sendproc[iswap] != me) {
-      
       {
         MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
         MPI_Sendrecv(buf_send, comm_send_size[iswap], type, sendproc[iswap], 0,
@@ -328,7 +327,6 @@ void Comm::reverse_communicate(Atom &atom)
 
     if(sendproc[iswap] != me) {
 
-      
       {
         MPI_Datatype type = (sizeof(MMD_float) == 4) ? MPI_FLOAT : MPI_DOUBLE;
         MPI_Sendrecv(buf_send, reverse_send_size[iswap], type, recvproc[iswap], 0,
@@ -392,7 +390,6 @@ void Comm::exchange(Atom &atom)
 
     nlocal = atom.nlocal;
 
-    
     {
       if(nlocal > maxnlocal) {
         send_flag = new int[nlocal];
@@ -456,7 +453,6 @@ void Comm::exchange(Atom &atom)
         nholes++;
 
     nholes_thread[tid] = nholes;
-    
     {
       int total_nholes = 0;
 
@@ -680,7 +676,6 @@ void Comm::borders(Atom &atom)
 
   int tid = omp_get_thread_num();
 
-    
     {
       if(atom.nlocal > maxnlocal) {
         send_flag = new int[atom.nlocal];
@@ -771,7 +766,6 @@ void Comm::borders(Atom &atom)
       put incoming ghosts at end of my atom arrays
       if swapping with self, simply copy, no messages */
 
-      
       {
         nsend = nsend_thread[threads->omp_num_threads - 1];
 

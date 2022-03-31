@@ -79,6 +79,7 @@ void Integrate::run(Atom &atom, Force* force, Neighbor &neighbor,
   mass = atom.mass;
   dtforce = dtforce / mass;
 
+  {
     int next_sort = sort_every>0?sort_every:ntimes+1;
 
     for(n = 0; n < ntimes; n++) {
@@ -99,7 +100,11 @@ void Integrate::run(Atom &atom, Force* force, Neighbor &neighbor,
         timer.stamp(TIME_COMM);
 
       } else {
+
+        {
           if(check_safeexchange) {
+
+            {
               double d_max = 0;
 
               for(i = 0; i < atom.nlocal; i++) {
@@ -133,6 +138,8 @@ void Integrate::run(Atom &atom, Force* force, Neighbor &neighbor,
                 "Increase reneighboring frequency or choose a different processor grid\n"
                 "Maximum move distance: %lf; Subdomain dimensions: %lf %lf %lf\n",
                 d_max, atom.box.xhi - atom.box.xlo, atom.box.yhi - atom.box.ylo, atom.box.zhi - atom.box.zlo);
+
+            }
 
           }
 
@@ -173,4 +180,7 @@ void Integrate::run(Atom &atom, Force* force, Neighbor &neighbor,
       finalIntegrate();
 
       if(thermo.nstat) thermo.compute(n + 1, atom, neighbor, force, timer, comm);
+
+    }
+  }
 }
