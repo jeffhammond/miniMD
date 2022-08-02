@@ -34,6 +34,9 @@
 
 #include "force_lj.h"
 
+#include <execution>
+#include "counting.h"
+
 #ifndef VECTORLENGTH
 #define VECTORLENGTH 4
 #endif
@@ -282,18 +285,24 @@ void ForceLJ::compute_halfneigh_threaded(Atom &atom, Neighbor &neighbor, int me)
 
   // clear force on own and ghost atoms
 
-  OMPFORSCHEDULE
-  for(int i = 0; i < nall; i++) {
+  //for(int i = 0; i < nall; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nall),
+                 [=](int i) {
     f[i * PAD + 0] = 0.0;
     f[i * PAD + 1] = 0.0;
     f[i * PAD + 2] = 0.0;
-  }
+  });
 
   // loop over all neighbors of my atoms
   // store force on both atoms i and j
 
-  OMPFORSCHEDULE
-  for(int i = 0; i < nlocal; i++) {
+  //for(int i = 0; i < nlocal; i++) {
+  std::for_each( std::execution::par_unseq,
+                 counting_iterator<MMD_int>(0),
+                 counting_iterator<MMD_int>(nall),
+                 [=](int i) {
     const int* const neighs = &neighbor.neighbors[i * neighbor.maxneighs];
     const int numneighs = neighbor.numneigh[i];
     const MMD_float xtmp = x[i * PAD + 0];
@@ -345,7 +354,7 @@ void ForceLJ::compute_halfneigh_threaded(Atom &atom, Neighbor &neighbor, int me)
     f[i * PAD + 1] += fiy;
     #pragma omp atomic
     f[i * PAD + 2] += fiz;
-  }
+  });
 
   #pragma omp atomic
   eng_vdwl += t_eng_vdwl;
